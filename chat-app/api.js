@@ -1,4 +1,6 @@
-// REPLACE THIS WITH YOUR GOOGLE SCRIPT URL
+import axios from 'axios'; // The import map will find the URL
+
+// REPLACE THIS WITH YOUR ACTUAL GOOGLE SCRIPT URL
 const API_URL = 'https://script.google.com/macros/s/AKfycbzpJURs1_u8kcN6GNA2RNZvCheCnpU4yd56Z5SGfA7Wj-mljNH7z_iOAiN6NPGNLMy_/exec'; 
 
 export const api = {
