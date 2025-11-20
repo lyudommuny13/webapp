@@ -5,24 +5,54 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vue Sheet Messenger</title>
+
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://unpkg.com/vue-router@4/dist/vue-router.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+
+    <style>
+        /* Hide scrollbar for Chrome, Safari and Opera */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* Hide scrollbar for IE, Edge and Firefox */
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            /* IE and Edge */
+            scrollbar-width: none;
+            /* Firefox */
+        }
+
+        .fade-enter-active,
+        .fade-leave-active {
+            transition: opacity 0.2s ease;
+        }
+
+        .fade-enter-from,
+        .fade-leave-to {
+            opacity: 0;
+        }
+    </style>
 </head>
 
-<body>
+<body class="bg-gray-100 text-slate-800 font-sans">
     <div id="app">
-        <router-view></router-view>
+        <router-view v-slot="{ Component }">
+            <transition name="fade" mode="out-in">
+                <component :is="Component" />
+            </transition>
+        </router-view>
     </div>
 
     <script type="module">
         const { createApp } = Vue;
         const { createRouter, createWebHashHistory } = VueRouter;
 
-        // Import our separate files
-        import AuthPage from './AuthPage.js';
-        import ChatPage from './ChatPage.js';
+        // IMPORTANT: Notice the './chat-app/' path prefix!
+        import AuthPage from './chat-app/AuthPage.js';
+        import ChatPage from './chat-app/ChatPage.js';
 
         const routes = [
             { path: '/', component: AuthPage },
@@ -34,6 +64,7 @@
             routes
         });
 
+        // Protection Guard
         router.beforeEach((to, from, next) => {
             const hasToken = localStorage.getItem('token');
             if (to.meta.requiresAuth && !hasToken) next('/');
