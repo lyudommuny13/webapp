@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vue Google Sheet Auth</title>
+
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/vue-router@4/dist/vue-router.global.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        /* Smooth transition for UI elements */
+        .fade-enter-active,
+        .fade-leave-active {
+            transition: opacity 0.3s ease;
+        }
+
+        .fade-enter-from,
+        .fade-leave-to {
+            opacity: 0;
+        }
+    </style>
+</head>
+
+<body class="bg-slate-50 text-slate-800">
+
+    <div id="app">
+        <router-view v-slot="{ Component }">
+            <transition name="fade" mode="out-in">
+                <component :is="Component" />
+            </transition>
+        </router-view>
+    </div>
+
+    <script>
+        const { createApp, ref, reactive } = Vue;
+        const { createRouter, createWebHashHistory, useRouter } = VueRouter;
+
+        // ==========================================
+        // CONFIGURATION
+        // ==========================================
+        // REPLACE THIS WITH YOUR GOOGLE APPS SCRIPT URL
+        const API_URL = 'https://script.google.com/macros/s/AKfycbzekd5uadCvAUcDuh7fSKb5ZtuJ769b3TxRExOR3Jhxsag-A-pRQ7l2zmGOYruSR9w/exec';
+
+        // ==========================================
+        // API SERVICE
+        // ==========================================
+        const api = {
+            // We use text/plain to prevent CORS Preflight issues with Google
+            async post(data) {
+                return axios.post(API_URL, JSON.stringify(data), {
+                    headers: { 'Content-Type': 'text/plain' }
+                });
+            }
+        };
+
+        // ==========================================
+        // COMPONENT: LOGIN / REGISTER
+        // ==========================================
+        const AuthComponent = {
+            template: `
+            <div class="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-blue-500 to-purple-600">
+                <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
+                    
+                    <div class="p-8 text-center">
+                        <h1 class="text-3xl font-bold text-gray-800 mb-2">
+                            {{ isLogin ? 'Welcome Back' : 'Create Account' }}
+                        </h1>
+                        <p class="text-gray-500">
+                            {{ isLogin ? 'Enter your details to access the app' : 'Register to get started' }}
+                        </p>
+                    </div>
+
+                    <form @submit.prevent="handleSubmit" class="px-8 pb-8 space-y-4">
+                        
+                        <div v-if="!isLogin">
+                            <label class="text-sm font-medium text-gray-700">Full Name</label>
+                            <input v-model="form.name" type="text" required placeholder="John Doe"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+                        </div>
+
+                        <div>
+                            <label class="text-sm font-medium text-gray-700">Username</label>
+                            <input v-model="form.username" type="text" required placeholder="user@example.com"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+                        </div>
+
+                        <div>
+                            <label class="text-sm font-medium text-gray-700">Password</label>
+                            <input v-model="form.password" type="password" required placeholder="••••••••"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+                        </div>
+
+                        <div v-if="errorMsg" class="text-red-500 text-sm text-center bg-red-50 p-2 rounded">
+                            {{ errorMsg }}
+                        </div>
+
+                        <button type="submit" :disabled="isLoading"
+                            class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-md focus:ring-2 focus:ring-blue-500 transition-all disabled:opacity-50 flex justify-center">
+                            <span v-if="isLoading">Processing...</span>
+                            <span v-else>{{ isLogin ? 'Sign In' : 'Sign Up' }}</span>
+                        </button>
+                    </form>
+
+                    <div class="bg-gray-50 px-8 py-4 text-center border-t border-gray-100">
+                        <p class="text-sm text-gray-600">
+                            {{ isLogin ? "Don't have an account?" : "Already have an account?" }}
+                            <button @click="toggleMode" class="text-blue-600 font-semibold hover:underline ml-1">
+                                {{ isLogin ? 'Sign up' : 'Log in' }}
+                            </button>
+                        </p>
+                    </div>
+                </div>
+            </div>
+            `,
+            setup() {
+                const router = useRouter();
+                const isLogin = ref(true);
+                const isLoading = ref(false);
+                const errorMsg = ref('');
+                const form = reactive({ name: '', username: '', password: '' });
+
+                const toggleMode = () => {
+                    isLogin.value = !isLogin.value;
+                    errorMsg.value = '';
+                    form.name = ''; form.username = ''; form.password = '';
+                };
+
+                const handleSubmit = async () => {
+                    isLoading.value = true;
+                    errorMsg.value = '';
+
+                    const payload = {
+                        action: isLogin.value ? 'login' : 'register',
+                        ...form
+                    };
+
+                    try {
+                        const response = await api.post(payload);
+                        const data = response.data;
+
+                        if (data.success) {
+                            localStorage.setItem('authToken', data.token);
+                            localStorage.setItem('user', JSON.stringify(data.user));
+                            router.push('/home');
+                        } else {
+                            errorMsg.value = data.message || 'Operation failed';
+                        }
+                    } catch (e) {
+                        console.error(e);
+                        errorMsg.value = "Network Error. Check console.";
+                    } finally {
+                        isLoading.value = false;
+                    }
+                };
+
+                return { isLogin, isLoading, errorMsg, form, toggleMode, handleSubmit };
+            }
+        };
+
+        // ==========================================
+        // COMPONENT: HOME (PROTECTED)
+        // ==========================================
+        const HomeComponent = {
+            template: `
+            <div class="min-h-screen bg-gray-100">
+                <nav class="bg-white shadow-sm sticky top-0 z-50">
+                    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+                        <span class="text-xl font-bold text-blue-600">MyWebApp</span>
+                        <div class="flex items-center gap-4">
+                            <span class="text-sm text-gray-500 hidden sm:block">Hello, {{ user.name }}</span>
+                            <button @click="logout" class="text-gray-500 hover:text-red-600 font-medium transition-colors">Logout</button>
+                        </div>
+                    </div>
+                </nav>
+
+                <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+                    
+                    <div class="bg-white overflow-hidden shadow-lg rounded-xl border border-gray-100">
+                        <div class="px-6 py-8">
+                            <div class="flex items-center justify-between mb-6">
+                                <h2 class="text-2xl font-bold text-gray-900">Dashboard</h2>
+                                <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-bold uppercase tracking-wide">Verified</span>
+                            </div>
+                            
+                            <p class="text-gray-600 mb-6 leading-relaxed">
+                                You have successfully authenticated via Google Sheets. This area is protected by your token logic.
+                            </p>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                                    <div class="text-xs text-gray-400 uppercase font-bold">Username</div>
+                                    <div class="text-lg font-semibold text-gray-800">{{ user.username }}</div>
+                                </div>
+                                <div class="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                                    <div class="text-xs text-gray-400 uppercase font-bold">Session Token</div>
+                                    <div class="text-sm font-mono text-gray-600 truncate">Authorized</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </main>
+            </div>
+            `,
+            setup() {
+                const router = useRouter();
+                const user = ref({ name: 'User', username: '' });
+
+                const logout = () => {
+                    localStorage.removeItem('authToken');
+                    localStorage.removeItem('user');
+                    router.push('/');
+                };
+
+                // Load user data on mount
+                const storedUser = localStorage.getItem('user');
+                if (storedUser) {
+                    user.value = JSON.parse(storedUser);
+                }
+
+                return { user, logout };
+            }
+        };
+
+        // ==========================================
+        // ROUTER SETUP
+        // ==========================================
+        const routes = [
+            { path: '/', component: AuthComponent },
+            { path: '/home', component: HomeComponent, meta: { requiresAuth: true } }
+        ];
+
+        const router = createRouter({
+            history: createWebHashHistory(), // Hash mode is best for simple hosting
+            routes
+        });
+
+        // Navigation Guard
+        router.beforeEach((to, from, next) => {
+            const isAuthenticated = localStorage.getItem('authToken');
+            if (to.meta.requiresAuth && !isAuthenticated) next('/');
+            else if (to.path === '/' && isAuthenticated) next('/home');
+            else next();
+        });
+
+        // ==========================================
+        // APP MOUNT
+        // ==========================================
+        const app = createApp({});
+        app.use(router);
+        app.mount('#app');
+    </script>
+</body>
+
+</html>
