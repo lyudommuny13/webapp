@@ -6,20 +6,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Messenger</title>
 
+    <!-- Libraries -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <script src="https://unpkg.com/vue-router@4/dist/vue-router.global.prod.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
 
+    <!-- Styles -->
     <style>
-        /* Messenger Font */
         @import url('https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600;700&display=swap');
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            font-family: 'Segoe UI', sans-serif;
         }
 
-        /* Hide Scrollbar but keep functionality */
+        /* Hide scrollbar */
         .no-scrollbar::-webkit-scrollbar {
             display: none;
         }
@@ -29,121 +30,106 @@
             scrollbar-width: none;
         }
 
-        /* Messenger Animations */
+        /* Animations */
+        .fade-enter-active,
+        .fade-leave-active {
+            transition: opacity 0.2s;
+        }
+
+        .fade-enter-from,
+        .fade-leave-to {
+            opacity: 0;
+        }
+
         .slide-enter-active,
         .slide-leave-active {
-            transition: all 0.3s ease;
+            transition: transform 0.2s ease-out;
         }
 
         .slide-enter-from {
             transform: translateX(100%);
-            opacity: 0;
         }
 
         .slide-leave-to {
-            transform: translateX(-20%);
-            opacity: 0;
+            transform: translateX(-5%);
         }
 
-        /* Messenger specific colors */
-        .bg-messenger {
+        /* Custom Messenger Colors */
+        .bg-mess-blue {
             background-color: #0084ff;
         }
 
-        .text-messenger {
+        .text-mess-blue {
             color: #0084ff;
         }
 
-        .bg-messenger-gray {
-            background-color: #f0f2f5;
+        .bubble-me {
+            border-radius: 18px 18px 4px 18px;
         }
 
-        /* Input placeholder color */
-        ::placeholder {
-            color: #65676b;
-            opacity: 1;
+        .bubble-you {
+            border-radius: 18px 18px 18px 4px;
         }
     </style>
 </head>
 
-<body class="bg-white h-[100dvh] w-full overflow-hidden">
+<body class="bg-gray-100 h-[100dvh] w-full overflow-hidden text-slate-900">
 
-    <div id="app" class="h-full w-full">
-        <router-view v-slot="{ Component }">
-            <transition name="slide" mode="out-in">
-                <component :is="Component" />
-            </transition>
-        </router-view>
+    <div id="app" class="h-full w-full flex justify-center">
+        <router-view></router-view>
     </div>
 
-    <script>
-        const { createApp, ref, reactive, onMounted, onUnmounted, nextTick, computed } = Vue;
+    <!-- MODULE SCRIPT -->
+    <script type="module">
+        const { createApp, ref, reactive, onMounted, onUnmounted, nextTick, computed, watch } = Vue;
         const { createRouter, createWebHashHistory, useRouter } = VueRouter;
 
-        // ============================================================
-        // ⚠️ PASTE YOUR GOOGLE SCRIPT URL HERE ⚠️
-        // ============================================================
-        const API_URL = 'https://script.google.com/macros/s/AKfycbzLufiGq2VVCuZNyJe4UEHYrIW6pfgjnY8M6C9a1OvkyyNwOdbFkHTeynoTuomzSGZp/exec';
+        // Import Config
+        import { CONFIG } from './config.js';
 
         // ==========================================
-        // API SERVICE
+        // 🔌 API SERVICE
         // ==========================================
         const api = {
             async post(data) {
                 try {
-                    const res = await axios.post(API_URL, JSON.stringify(data), {
+                    const res = await axios.post(CONFIG.API_URL, JSON.stringify(data), {
                         headers: { 'Content-Type': 'text/plain' }
                     });
                     return res.data;
                 } catch (e) {
                     console.error(e);
-                    return { success: false, message: "Connection Error" };
+                    return { success: false, message: "Network Error" };
                 }
             }
         };
 
         // ==========================================
-        // LOGIN SCREEN (Meta Style)
+        // 🔐 AUTH VIEW
         // ==========================================
         const AuthView = {
             template: `
-            <div class="h-full flex flex-col items-center justify-center px-6 bg-white sm:bg-gray-100">
-                <div class="w-full max-w-[400px] sm:bg-white sm:p-8 sm:rounded-xl sm:shadow-lg">
-                    <div class="flex flex-col items-center mb-10">
-                        <div class="w-20 h-20 rounded-full bg-messenger flex items-center justify-center shadow-sm mb-4">
-                            <svg class="w-12 h-12 text-white" viewBox="0 0 28 28" fill="currentColor"><path d="M14 2.042c6.76 0 12 4.952 12 11.64S20.76 25.322 14 25.322a13.091 13.091 0 0 1-3.474-.461.956 .956 0 0 0-.641.047L7.5 25.959a.961.961 0 0 1-1.348-.849l-.065-2.134a.957.957 0 0 0-.322-.684A11.389 11.389 0 0 1 2 13.682C2 6.994 7.24 2.042 14 2.042ZM6.794 17.086a.57.57 0 0 0 .827.758l3.786-2.874a.722.722 0 0 1 .868 0l2.8 2.1a1.8 1.8 0 0 0 2.6-.481l3.525-5.592a.57.57 0 0 0-.827-.758l-3.786 2.874a.722.722 0 0 1-.868 0l-2.8-2.1a1.8 1.8 0 0 0-2.6.481Z"/></svg>
-                        </div>
-                        <h1 class="text-2xl font-bold text-gray-900">Messenger</h1>
+            <div class="w-full max-w-md h-full bg-white sm:h-auto sm:mt-20 sm:rounded-2xl sm:shadow-xl p-8 flex flex-col justify-center">
+                <div class="text-center mb-8">
+                    <div class="w-16 h-16 bg-mess-blue rounded-full mx-auto mb-4 flex items-center justify-center shadow-lg shadow-blue-200">
+                        <svg class="w-8 h-8 text-white" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12c0 1.82.49 3.53 1.35 5L2.5 21.5l4.5-.85C8.47 21.51 10.18 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm0 18c-1.46 0-2.84-.36-4.06-1l-.3-.16-3 .57.57-3-.16-.3C4.36 14.84 4 13.46 4 12c0-4.41 3.59-8 8-8s8 3.59 8 8-3.59 8-8 8z"/></svg>
                     </div>
-
-                    <form @submit.prevent="submit" class="space-y-4 w-full">
-                        <div v-if="!isLogin">
-                            <input v-model="form.name" type="text" class="w-full px-4 py-3.5 rounded-xl border border-gray-300 focus:border-messenger focus:ring-1 focus:ring-messenger outline-none transition text-[15px]" placeholder="Full Name" required>
-                        </div>
-                        <div>
-                            <input v-model="form.username" type="text" class="w-full px-4 py-3.5 rounded-xl border border-gray-300 focus:border-messenger focus:ring-1 focus:ring-messenger outline-none transition text-[15px]" placeholder="Username" required>
-                        </div>
-                        <div>
-                            <input v-model="form.password" type="password" class="w-full px-4 py-3.5 rounded-xl border border-gray-300 focus:border-messenger focus:ring-1 focus:ring-messenger outline-none transition text-[15px]" placeholder="Password" required>
-                        </div>
-
-                        <div v-if="error" class="text-red-500 text-sm text-center">{{ error }}</div>
-
-                        <button :disabled="loading" class="w-full py-3 bg-messenger text-white font-semibold rounded-xl text-[17px] transition hover:bg-blue-600 disabled:opacity-50">
-                            {{ loading ? 'Logging in...' : (isLogin ? 'Log In' : 'Create Account') }}
-                        </button>
-                    </form>
-
-                    <div class="mt-8 text-center">
-                        <button @click="toggle" class="text-sm font-medium text-gray-900 hover:underline">
-                            {{ isLogin ? "Create New Account" : "Back to Login" }}
-                        </button>
-                    </div>
+                    <h1 class="text-2xl font-bold text-gray-900">Messenger</h1>
                 </div>
-                
-                <div class="fixed bottom-6 text-center">
-                    <span class="text-xs text-gray-400 font-semibold tracking-wider">FROM META</span>
-                </div>
+                <form @submit.prevent="submit" class="space-y-4">
+                    <input v-if="!isLogin" v-model="form.name" placeholder="Full Name" class="w-full p-3 bg-gray-100 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition" required>
+                    <input v-model="form.username" placeholder="Username" class="w-full p-3 bg-gray-100 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition" required>
+                    <input v-model="form.password" type="password" placeholder="Password" class="w-full p-3 bg-gray-100 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition" required>
+                    
+                    <p v-if="error" class="text-red-500 text-center text-sm">{{ error }}</p>
+                    
+                    <button :disabled="loading" class="w-full bg-mess-blue text-white py-3 rounded-xl font-bold hover:bg-blue-600 transition disabled:opacity-50">
+                        {{ loading ? 'Processing...' : (isLogin ? 'Log In' : 'Create Account') }}
+                    </button>
+                </form>
+                <button @click="toggle" class="mt-6 text-sm text-gray-500 hover:text-mess-blue font-semibold w-full text-center">
+                    {{ isLogin ? "Create New Account" : "Back to Login" }}
+                </button>
             </div>
             `,
             setup() {
@@ -154,149 +140,223 @@
                 const form = reactive({ name: '', username: '', password: '' });
 
                 const toggle = () => { isLogin.value = !isLogin.value; error.value = ''; };
-
                 const submit = async () => {
                     loading.value = true; error.value = '';
-                    const payload = { action: isLogin.value ? 'login' : 'register', ...form };
-                    const res = await api.post(payload);
-
+                    const res = await api.post({ action: isLogin.value ? 'login' : 'register', ...form });
                     if (res.success) {
-                        localStorage.setItem('token', res.token);
                         localStorage.setItem('user', JSON.stringify(res.user));
-                        router.push('/chat');
+                        localStorage.setItem('token', res.token);
+                        router.push('/app');
                     } else {
-                        error.value = res.message || 'Login failed';
+                        error.value = res.message;
                     }
                     loading.value = false;
                 };
-                return { isLogin, loading, error, form, toggle, submit };
+                return { isLogin, form, error, loading, toggle, submit };
             }
         };
 
         // ==========================================
-        // CHAT SCREEN (Messenger Clone)
+        // 🏠 MAIN APP (Layout + Chat)
         // ==========================================
-        const ChatView = {
+        const AppView = {
             template: `
-            <div class="flex flex-col h-full w-full max-w-[700px] mx-auto bg-white relative sm:border-x sm:border-gray-200 shadow-xl">
+            <div class="flex w-full h-full max-w-[1600px] bg-white shadow-2xl overflow-hidden">
                 
-                <div class="h-16 px-4 flex items-center justify-between shadow-sm z-20 bg-white/95 backdrop-blur sticky top-0">
-                    <div class="flex items-center gap-3">
-                        <div class="relative">
-                             <div class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 font-bold text-lg overflow-hidden">
-                                <img src="https://ui-avatars.com/api/?name=Group+Chat&background=random" alt="Group" />
-                             </div>
-                             <div class="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-white rounded-full"></div>
+                <!-- 1. SIDEBAR (User List) -->
+                <div class="flex flex-col w-full md:w-[350px] border-r border-gray-200 bg-white h-full" 
+                     :class="{'hidden md:flex': activeChatUser}">
+                    
+                    <!-- Sidebar Header -->
+                    <div class="p-4 flex justify-between items-center sticky top-0 bg-white z-10">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center font-bold text-gray-600 text-xl">
+                                {{ me.name.charAt(0) }}
+                            </div>
+                            <h1 class="text-2xl font-bold">Chats</h1>
                         </div>
-                        <div class="flex flex-col">
-                            <span class="font-bold text-[17px] text-gray-900 leading-tight">Team Chat</span>
-                            <span class="text-[12px] text-gray-500">Active now</span>
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-6 text-messenger">
-                        <svg class="w-6 h-6 cursor-pointer" fill="currentColor" viewBox="0 0 24 24"><path d="M18.5 2h-13A3.5 3.5 0 0 0 2 5.5v13A3.5 3.5 0 0 0 5.5 22h13a3.5 3.5 0 0 0 3.5-3.5v-13A3.5 3.5 0 0 0 18.5 2zm-4.5 15h-4v-4h4v4zm2.72-5.12-1.39 1.39a.98.98 0 0 1-.71.3H8.88a1 1 0 0 1-.71-.29l-1.39-1.4a2.96 2.96 0 0 1 0-4.18l1.4-1.39a1 1 0 0 1 1.41 0l1.39 1.39a1 1 0 0 1 0 1.41l-.77.78a.98.98 0 0 0 0 1.39l2.24 2.24a.98.98 0 0 0 1.39 0l.78-.77a1 1 0 0 1 1.41 0z"/></svg>
-                        <svg class="w-7 h-7 cursor-pointer" fill="currentColor" viewBox="0 0 24 24"><path d="M18 10.48V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-4.48l4 3.98v-11l-4 3.98z"/></svg>
-                        <button @click="logout" class="w-6 h-6 text-gray-400 hover:text-red-500">
-                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                        <button @click="logout" class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
                         </button>
                     </div>
-                </div>
 
-                <div id="chatBox" class="flex-1 overflow-y-auto p-4 bg-white space-y-1">
-                    <div v-if="loading && messages.length === 0" class="flex justify-center py-10">
-                        <svg class="animate-spin h-8 w-8 text-messenger" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                    </div>
-
-                    <div class="h-4"></div>
-
-                    <div v-for="(msg, index) in messages" :key="msg.id || index" class="flex w-full mb-1" :class="isMe(msg) ? 'justify-end' : 'justify-start'">
+                    <!-- User List -->
+                    <div class="flex-1 overflow-y-auto p-2 space-y-1">
+                        <div v-if="loadingUsers" class="p-4 text-center text-gray-400 text-sm">Loading contacts...</div>
                         
-                        <div v-if="!isMe(msg)" class="w-7 h-7 mr-2 self-end mb-1">
-                             <img :src="'https://ui-avatars.com/api/?name=' + msg.sender + '&background=random&size=32'" class="rounded-full w-full h-full">
-                        </div>
-
-                        <div class="max-w-[70%] break-words px-3.5 py-2 text-[15px] leading-snug"
-                             :class="isMe(msg) 
-                                ? 'bg-messenger text-white rounded-[18px] rounded-br-md' 
-                                : 'bg-messenger-gray text-black rounded-[18px] rounded-bl-md'">
-                            {{ msg.content }}
+                        <div v-for="u in users" :key="u.username" 
+                             @click="selectUser(u)"
+                             class="flex items-center gap-3 p-3 rounded-lg cursor-pointer transition hover:bg-gray-100"
+                             :class="activeChatUser?.username === u.username ? 'bg-blue-50' : ''">
+                            
+                            <div class="relative">
+                                <div class="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white font-bold text-lg">
+                                    {{ u.name.charAt(0) }}
+                                </div>
+                                <div class="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-white rounded-full"></div>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <h3 class="font-semibold text-gray-900 truncate">{{ u.name }}</h3>
+                                <p class="text-sm text-gray-500 truncate">Click to chat</p>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="p-2 bg-white flex items-center gap-2 border-t border-gray-100">
-                    <div class="flex items-center gap-3 text-messenger px-1">
-                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
-                        <svg class="w-6 h-6 hidden sm:block" fill="currentColor" viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+                <!-- 2. CHAT AREA -->
+                <div class="flex-1 flex flex-col h-full bg-white relative" 
+                     :class="{'w-full flex': activeChatUser, 'hidden md:flex': !activeChatUser}">
+                    
+                    <!-- Empty State (Desktop) -->
+                    <div v-if="!activeChatUser" class="hidden md:flex flex-col items-center justify-center h-full text-gray-400">
+                        <svg class="w-24 h-24 mb-4 text-gray-200" fill="currentColor" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+                        <p class="text-lg">Select a user to start messaging</p>
                     </div>
 
-                    <div class="flex-1 bg-messenger-gray rounded-full px-4 py-2 flex items-center">
-                        <input 
-                            v-model="text" 
-                            @keyup.enter="send"
-                            type="text" 
-                            placeholder="Aa" 
-                            class="bg-transparent border-none focus:ring-0 outline-none w-full text-[15px] text-gray-900"
-                        >
-                        <svg class="w-6 h-6 text-gray-400 cursor-pointer" fill="currentColor" viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/></svg>
+                    <!-- Chat Header -->
+                    <div v-else class="h-16 border-b px-4 flex items-center justify-between shadow-sm bg-white z-20 sticky top-0">
+                        <div class="flex items-center gap-3">
+                            <button @click="activeChatUser = null" class="md:hidden text-mess-blue p-1 -ml-2">
+                                <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                            </button>
+                            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white font-bold">
+                                {{ activeChatUser.name.charAt(0) }}
+                            </div>
+                            <div>
+                                <h2 class="font-bold leading-tight">{{ activeChatUser.name }}</h2>
+                                <p class="text-xs text-gray-500">Active now</p>
+                            </div>
+                        </div>
+                        <div class="flex gap-4 text-mess-blue">
+                            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M20 15.5c-1.25 0-2.45-.2-3.57-.57a1.02 1.02 0 00-1.02.24l-2.2 2.2a15.045 15.045 0 01-6.59-6.59l2.2-2.21a.96.96 0 00.25-1A11.36 11.36 0 018.5 4c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1 1 3.87.55 7.59 2.16 10.72 1.61 3.13 3.9 5.42 7.03 7.03C15.41 23.45 19.13 24 23 24c.55 0 1-.45 1-1v-3.5c0-.55-.45-1-1-1zM19 12h2a9 9 0 00-9-9v2c3.87 0 7 3.13 7 7z"/></svg>
+                        </div>
                     </div>
 
-                    <button @click="send" class="p-2 text-messenger hover:bg-gray-100 rounded-full transition">
-                        <svg v-if="text.trim()" class="w-5 h-5 rotate-45 -ml-1 mt-1" fill="currentColor" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
-                        <svg v-else class="w-7 h-7" fill="currentColor" viewBox="0 0 24 24"><path d="M2 20h2c.55 0 1-.45 1-1v-9c0-.55-.45-1-1-1H2v11zm19.83-7.12c.11-.25.17-.52.17-.8V11c0-1.1-.9-2-2-2h-5.5l.92-4.65c.05-.22.02-.46-.08-.66-.23-.45-.52-.86-.88-1.22L14 2 7.59 8.41C7.21 8.79 7 9.3 7 9.83v7.84C7 18.95 8.05 20 9.34 20h8.11c.7 0 1.36-.37 1.72-.97l2.66-6.15z"/></svg>
-                    </button>
+                    <!-- Chat Messages -->
+                    <div v-if="activeChatUser" id="chatBox" class="flex-1 overflow-y-auto p-4 space-y-1 bg-white">
+                        <div v-if="loadingChat && messages.length === 0" class="flex justify-center py-10">
+                             <svg class="animate-spin h-8 w-8 text-mess-blue" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        </div>
+
+                        <div v-for="msg in messages" :key="msg.id" class="flex flex-col mb-2 w-full group">
+                            
+                            <div class="flex w-full" :class="isMe(msg) ? 'justify-end' : 'justify-start'">
+                                <!-- Message Bubble -->
+                                <div @dblclick="react(msg)"
+                                     class="relative max-w-[75%] px-4 py-2 text-[15px] shadow-sm leading-relaxed break-words cursor-pointer transition-transform active:scale-95"
+                                     :class="isMe(msg) ? 'bg-mess-blue text-white bubble-me' : 'bg-gray-100 text-gray-900 bubble-you'">
+                                    {{ msg.content }}
+                                    
+                                    <!-- Reaction Overlay -->
+                                    <div v-if="msg.reactions && msg.reactions !== '{}'" class="absolute -bottom-2 right-0 bg-white rounded-full p-0.5 shadow-md text-xs border">
+                                        ❤️
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Status Indicator (Right side only) -->
+                            <div v-if="isMe(msg)" class="flex justify-end mt-1 mr-1">
+                                <div v-if="msg.status === 'sending'" class="w-3 h-3 rounded-full border border-gray-300"></div>
+                                <div v-else class="w-3 h-3 rounded-full bg-gray-300 flex items-center justify-center text-white text-[8px]">
+                                    <svg class="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path></svg>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="h-2"></div>
+                    </div>
+
+                    <!-- Input Area -->
+                    <div v-if="activeChatUser" class="p-3 flex items-center gap-2 bg-white border-t">
+                        <div class="flex-1 bg-gray-100 rounded-3xl px-4 py-2 flex items-center focus-within:ring-1 focus-within:ring-blue-500 transition">
+                            <input v-model="text" @keyup.enter="send" type="text" placeholder="Aa" class="w-full bg-transparent border-none outline-none text-[15px]">
+                        </div>
+                        <button @click="send" class="text-mess-blue p-2 hover:bg-blue-50 rounded-full transition">
+                            <svg v-if="text.trim()" class="w-6 h-6 rotate-45" fill="currentColor" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path></svg>
+                            <svg v-else class="w-7 h-7 text-mess-blue" fill="currentColor" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                        </button>
+                    </div>
                 </div>
             </div>
             `,
             setup() {
                 const router = useRouter();
-                const user = ref(JSON.parse(localStorage.getItem('user') || '{}'));
+                const me = ref(JSON.parse(localStorage.getItem('user') || '{}'));
+                const users = ref([]);
+                const activeChatUser = ref(null);
                 const messages = ref([]);
                 const text = ref('');
-                const loading = ref(true);
-                let interval = null;
+                const loadingUsers = ref(true);
+                const loadingChat = ref(false);
+                let pollInterval = null;
 
-                const isMe = (msg) => msg.sender === user.value.username;
-
-                const scroll = () => {
-                    nextTick(() => {
-                        const box = document.getElementById('chatBox');
-                        if (box) box.scrollTop = box.scrollHeight;
-                    });
+                // --- FETCHING ---
+                const fetchUsers = async () => {
+                    const res = await api.post({ action: 'getUsers' });
+                    // Filter myself out
+                    if (res.success) users.value = res.users.filter(u => u.username !== me.value.username);
+                    loadingUsers.value = false;
                 };
 
-                const loadMessages = async () => {
-                    const res = await api.post({ action: 'getMessages' });
+                const fetchChat = async () => {
+                    if (!activeChatUser.value) return;
+                    const res = await api.post({
+                        action: 'getChat',
+                        u1: me.value.username,
+                        u2: activeChatUser.value.username
+                    });
+
                     if (res.success) {
-                        const prevLen = messages.value.length;
-                        if (res.messages.length !== prevLen) {
-                            messages.value = res.messages;
-                            scroll();
+                        // Merge logic could be here, but simple replace works for prototype
+                        // We only update if length changed to avoid scroll jitter
+                        if (res.messages.length !== messages.value.filter(m => m.status !== 'sending').length) {
+                            // Keep sending messages
+                            const sendingMsgs = messages.value.filter(m => m.status === 'sending');
+                            messages.value = [...res.messages, ...sendingMsgs];
+                            scrollToBottom();
                         }
                     }
-                    loading.value = false;
+                    loadingChat.value = false;
+                };
+
+                // --- ACTIONS ---
+                const selectUser = (u) => {
+                    activeChatUser.value = u;
+                    messages.value = [];
+                    loadingChat.value = true;
+                    fetchChat();
                 };
 
                 const send = async () => {
-                    if (!text.value.trim()) return; // Can add "Like" logic here later
-
+                    if (!text.value.trim()) return;
                     const content = text.value;
                     text.value = '';
 
-                    // Optimistic UI
+                    // 🚀 Optimistic UI
+                    const tempId = Date.now();
                     messages.value.push({
-                        id: Date.now(),
-                        sender: user.value.username,
-                        content: content
+                        id: tempId,
+                        sender: me.value.username,
+                        content: content,
+                        status: 'sending'
                     });
-                    scroll();
+                    scrollToBottom();
 
                     await api.post({
                         action: 'sendMessage',
-                        username: user.value.username,
-                        message: content
+                        id: tempId,
+                        sender: me.value.username,
+                        receiver: activeChatUser.value.username,
+                        content: content
                     });
-                    loadMessages();
+                    fetchChat(); // Sync
+                };
+
+                const react = async (msg) => {
+                    // Toggle heart visually
+                    if (msg.reactions === '{}' || !msg.reactions) {
+                        msg.reactions = '{"heart": true}'; // Visual only first
+                        await api.post({ action: 'react', msgId: msg.id, reaction: '{"heart": true}' });
+                    }
                 };
 
                 const logout = () => {
@@ -304,31 +364,46 @@
                     router.push('/');
                 };
 
+                const scrollToBottom = () => {
+                    nextTick(() => {
+                        const box = document.getElementById('chatBox');
+                        if (box) box.scrollTop = box.scrollHeight;
+                    });
+                };
+
+                const isMe = (msg) => msg.sender === me.value.username;
+
+                // --- LIFECYCLE ---
                 onMounted(() => {
-                    loadMessages();
-                    interval = setInterval(loadMessages, 2500); // Fast poll
+                    fetchUsers();
+                    pollInterval = setInterval(() => {
+                        if (activeChatUser.value) fetchChat();
+                    }, CONFIG.POLLING_RATE);
                 });
 
-                onUnmounted(() => clearInterval(interval));
+                onUnmounted(() => clearInterval(pollInterval));
 
-                return { user, messages, text, loading, isMe, send, logout };
+                return {
+                    me, users, activeChatUser, messages, text,
+                    loadingUsers, loadingChat,
+                    selectUser, send, react, logout, isMe
+                };
             }
         };
 
         // ==========================================
-        // APP INIT
+        // 🏗️ APP BOOTSTRAP
         // ==========================================
         const routes = [
             { path: '/', component: AuthView },
-            { path: '/chat', component: ChatView, meta: { requiresAuth: true } }
+            { path: '/app', component: AppView, meta: { requiresAuth: true } }
         ];
 
         const router = createRouter({ history: createWebHashHistory(), routes });
 
         router.beforeEach((to, from, next) => {
-            const auth = localStorage.getItem('token');
-            if (to.meta.requiresAuth && !auth) next('/');
-            else if (to.path === '/' && auth) next('/chat');
+            if (to.meta.requiresAuth && !localStorage.getItem('token')) next('/');
+            else if (to.path === '/' && localStorage.getItem('token')) next('/app');
             else next();
         });
 
