@@ -3,21 +3,34 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vue Sheet Messenger</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Vue Sheet Chat</title>
 
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://unpkg.com/vue-router@4/dist/vue-router.global.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
 
     <style>
-        .no-scrollbar::-webkit-scrollbar {
-            display: none;
+        /* Clean Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
         }
 
-        .no-scrollbar {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
+        ::-webkit-scrollbar-track {
+            background: transparent;
         }
 
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* Page Transitions */
         .fade-enter-active,
         .fade-leave-active {
             transition: opacity 0.2s ease;
@@ -28,20 +41,12 @@
             opacity: 0;
         }
     </style>
-
-    <script type="importmap">
-    {
-      "imports": {
-        "vue": "https://unpkg.com/vue@3/dist/vue.esm-browser.js",
-        "vue-router": "https://unpkg.com/vue-router@4/dist/vue-router.esm-browser.js",
-        "axios": "https://cdn.jsdelivr.net/npm/axios/dist/esm/axios.min.js"
-      }
-    }
-    </script>
 </head>
 
-<body class="bg-gray-100 text-slate-800 font-sans">
-    <div id="app">
+<body class="bg-gray-50 text-slate-800 h-screen overflow-hidden selection:bg-blue-100">
+
+    <div id="app"
+        class="h-full w-full max-w-md mx-auto bg-white shadow-2xl relative flex flex-col sm:border-x sm:border-gray-200">
         <router-view v-slot="{ Component }">
             <transition name="fade" mode="out-in">
                 <component :is="Component" />
@@ -49,18 +54,252 @@
         </router-view>
     </div>
 
-    <script type="module">
-        // Now we can import directly from "vue" because of the Import Map above
-        import { createApp } from 'vue';
-        import { createRouter, createWebHashHistory } from 'vue-router';
+    <script>
+        const { createApp, ref, reactive, onMounted, onUnmounted, nextTick, computed } = Vue;
+        const { createRouter, createWebHashHistory, useRouter } = VueRouter;
 
-        // Import your local components
-        import AuthPage from './chat-app/AuthPage.js';
-        import ChatPage from './chat-app/ChatPage.js';
+        // ==========================================
+        // ⚙️ CONFIGURATION
+        // ==========================================
+        const API_URL = 'https://script.google.com/macros/s/AKfycbzpJURs1_u8kcN6GNA2RNZvCheCnpU4yd56Z5SGfA7Wj-mljNH7z_iOAiN6NPGNLMy_/exec';
+        // ^^^ PASTE YOUR URL ABOVE ^^^
 
+        // ==========================================
+        // 🔌 API SERVICE (Optimized)
+        // ==========================================
+        const api = {
+            async post(data) {
+                if (API_URL.includes('YOUR_GOOGLE')) {
+                    alert("Please setup your API_URL in the code!");
+                    return { success: false, message: "Setup Required" };
+                }
+                try {
+                    // content-type text/plain prevents CORS preflight options request = FASTER
+                    const res = await axios.post(API_URL, JSON.stringify(data), {
+                        headers: { 'Content-Type': 'text/plain' }
+                    });
+                    return res.data;
+                } catch (e) {
+                    console.error(e);
+                    return { success: false, message: "Network Error" };
+                }
+            }
+        };
+
+        // ==========================================
+        // 🔐 COMPONENT: AUTH (Login/Register)
+        // ==========================================
+        const AuthView = {
+            template: `
+            <div class="h-full flex flex-col justify-center p-8 bg-white">
+                <div class="mb-10 text-center">
+                    <div class="w-16 h-16 bg-blue-600 rounded-2xl mx-auto flex items-center justify-center mb-4 shadow-lg shadow-blue-200">
+                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
+                    </div>
+                    <h1 class="text-3xl font-bold text-gray-900">{{ isLogin ? 'Welcome Back' : 'Get Started' }}</h1>
+                    <p class="text-gray-500 mt-2">Instant chat powered by Google Sheets</p>
+                </div>
+
+                <form @submit.prevent="submit" class="space-y-4">
+                    <div v-if="!isLogin" class="space-y-1">
+                        <label class="text-xs font-bold text-gray-400 uppercase tracking-wider">Full Name</label>
+                        <input v-model="form.name" type="text" class="w-full p-4 bg-gray-50 rounded-xl border-none focus:ring-2 focus:ring-blue-500 transition" placeholder="John Doe" required>
+                    </div>
+                    
+                    <div class="space-y-1">
+                        <label class="text-xs font-bold text-gray-400 uppercase tracking-wider">Username</label>
+                        <input v-model="form.username" type="text" class="w-full p-4 bg-gray-50 rounded-xl border-none focus:ring-2 focus:ring-blue-500 transition" placeholder="username" required>
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-xs font-bold text-gray-400 uppercase tracking-wider">Password</label>
+                        <input v-model="form.password" type="password" class="w-full p-4 bg-gray-50 rounded-xl border-none focus:ring-2 focus:ring-blue-500 transition" placeholder="••••••••" required>
+                    </div>
+
+                    <div v-if="error" class="p-3 bg-red-50 text-red-600 text-sm rounded-lg text-center">{{ error }}</div>
+
+                    <button :disabled="loading" class="w-full py-4 bg-blue-600 text-white font-bold rounded-xl shadow-xl shadow-blue-200 hover:bg-blue-700 active:scale-95 transition disabled:opacity-50 disabled:scale-100">
+                        <span v-if="loading" class="animate-pulse">Connecting...</span>
+                        <span v-else>{{ isLogin ? 'Sign In' : 'Create Account' }}</span>
+                    </button>
+                </form>
+
+                <div class="mt-8 text-center">
+                    <button @click="toggle" class="text-sm text-gray-500 hover:text-blue-600 font-medium transition">
+                        {{ isLogin ? "New user? Create account" : "Already have an account? Log in" }}
+                    </button>
+                </div>
+            </div>
+            `,
+            setup() {
+                const router = useRouter();
+                const isLogin = ref(true);
+                const loading = ref(false);
+                const error = ref('');
+                const form = reactive({ name: '', username: '', password: '' });
+
+                const toggle = () => { isLogin.value = !isLogin.value; error.value = ''; };
+
+                const submit = async () => {
+                    loading.value = true;
+                    error.value = '';
+                    const payload = {
+                        action: isLogin.value ? 'login' : 'register',
+                        ...form
+                    };
+
+                    const res = await api.post(payload);
+
+                    if (res.success) {
+                        localStorage.setItem('token', res.token);
+                        localStorage.setItem('user', JSON.stringify(res.user));
+                        router.push('/chat');
+                    } else {
+                        error.value = res.message || 'Operation failed';
+                    }
+                    loading.value = false;
+                };
+
+                return { isLogin, loading, error, form, toggle, submit };
+            }
+        };
+
+        // ==========================================
+        // 💬 COMPONENT: CHAT (Real-time Polling)
+        // ==========================================
+        const ChatView = {
+            template: `
+            <div class="flex flex-col h-full bg-white">
+                <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-white/90 backdrop-blur z-10 sticky top-0">
+                    <div>
+                        <h2 class="text-xl font-bold text-gray-800">Messages</h2>
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                            <span class="text-xs text-gray-500 font-medium">Connected as {{ user.username }}</span>
+                        </div>
+                    </div>
+                    <button @click="logout" class="p-2 bg-gray-50 rounded-full hover:bg-red-50 hover:text-red-600 transition">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                    </button>
+                </div>
+
+                <div id="chatBox" class="flex-1 overflow-y-auto p-4 space-y-6 bg-white scroll-smooth">
+                    <div v-if="loading && messages.length === 0" class="flex justify-center py-10">
+                        <div class="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+
+                    <div v-for="(msg, index) in messages" :key="msg.id || index" class="flex flex-col" :class="isMe(msg) ? 'items-end' : 'items-start'">
+                        <div class="max-w-[75%]">
+                            <div class="px-4 py-2.5 text-[15px] shadow-sm break-words leading-relaxed"
+                                :class="isMe(msg) 
+                                    ? 'bg-blue-600 text-white rounded-2xl rounded-tr-sm' 
+                                    : 'bg-gray-100 text-gray-800 rounded-2xl rounded-tl-sm'">
+                                {{ msg.content }}
+                            </div>
+                            <div class="text-[10px] text-gray-400 mt-1 px-1 font-medium" :class="isMe(msg) ? 'text-right' : 'text-left'">
+                                {{ isMe(msg) ? 'You' : msg.sender }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="h-4"></div>
+                </div>
+
+                <div class="p-4 bg-white border-t border-gray-100 pb-8 sm:pb-4">
+                    <div class="flex items-center gap-2 bg-gray-50 p-1.5 rounded-full border border-gray-200 focus-within:ring-2 focus-within:ring-blue-500 focus-within:bg-white transition-all shadow-sm">
+                        <input 
+                            v-model="text" 
+                            @keyup.enter="send"
+                            type="text" 
+                            placeholder="Type a message..." 
+                            class="flex-1 bg-transparent border-none px-4 py-2 focus:ring-0 outline-none text-gray-700 placeholder-gray-400"
+                        >
+                        <button 
+                            @click="send" 
+                            :disabled="!text.trim()"
+                            class="bg-blue-600 text-white w-10 h-10 rounded-full flex items-center justify-center shadow hover:bg-blue-700 active:scale-90 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                            <svg class="w-5 h-5 translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            `,
+            setup() {
+                const router = useRouter();
+                const user = ref(JSON.parse(localStorage.getItem('user') || '{}'));
+                const messages = ref([]);
+                const text = ref('');
+                const loading = ref(true);
+                let interval = null;
+
+                const isMe = (msg) => msg.sender === user.value.username;
+
+                const scroll = () => {
+                    nextTick(() => {
+                        const box = document.getElementById('chatBox');
+                        if (box) box.scrollTop = box.scrollHeight;
+                    });
+                };
+
+                const loadMessages = async () => {
+                    const res = await api.post({ action: 'getMessages' });
+                    if (res.success) {
+                        const prevLen = messages.value.length;
+                        // Only update if we have new data to prevent UI flicker
+                        if (res.messages.length !== prevLen) {
+                            messages.value = res.messages;
+                            scroll();
+                        }
+                    }
+                    loading.value = false;
+                };
+
+                const send = async () => {
+                    if (!text.value.trim()) return;
+
+                    const content = text.value;
+                    text.value = ''; // Clear input immediately
+
+                    // 🚀 Optimistic UI Update (Make it look instant)
+                    messages.value.push({
+                        id: Date.now(),
+                        sender: user.value.username,
+                        content: content
+                    });
+                    scroll();
+
+                    // Send to background
+                    await api.post({
+                        action: 'sendMessage',
+                        username: user.value.username,
+                        message: content
+                    });
+
+                    // Re-sync
+                    loadMessages();
+                };
+
+                const logout = () => {
+                    localStorage.clear();
+                    router.push('/');
+                };
+
+                onMounted(() => {
+                    loadMessages();
+                    interval = setInterval(loadMessages, 3000); // Poll every 3s
+                });
+
+                onUnmounted(() => clearInterval(interval));
+
+                return { user, messages, text, loading, isMe, send, logout };
+            }
+        };
+
+        // ==========================================
+        // 🚀 APP INIT
+        // ==========================================
         const routes = [
-            { path: '/', component: AuthPage },
-            { path: '/chat', component: ChatPage, meta: { requiresAuth: true } }
+            { path: '/', component: AuthView },
+            { path: '/chat', component: ChatView, meta: { requiresAuth: true } }
         ];
 
         const router = createRouter({
@@ -69,15 +308,13 @@
         });
 
         router.beforeEach((to, from, next) => {
-            const hasToken = localStorage.getItem('token');
-            if (to.meta.requiresAuth && !hasToken) next('/');
-            else if (to.path === '/' && hasToken) next('/chat');
+            const auth = localStorage.getItem('token');
+            if (to.meta.requiresAuth && !auth) next('/');
+            else if (to.path === '/' && auth) next('/chat');
             else next();
         });
 
-        const app = createApp({});
-        app.use(router);
-        app.mount('#app');
+        createApp({}).use(router).mount('#app');
     </script>
 </body>
 
